@@ -1,0 +1,23 @@
+version: '3.6'
+
+networks:
+  traefik:
+    external: true
+
+services:
+  frontend-prod:
+    build:
+      context: .
+      dockerfile: ./docker/prod/Dockerfile
+      args:
+        VITE_API_URL: $VITE_API_URL
+        VITE_SITE_URL: $VITE_SITE_URL
+        VITE_PAYPAL_CLIENT_ID: $VITE_PAYPAL_CLIENT_ID
+        VITE_GOOGLE_SSO_CLIENT_ID: $VITE_GOOGLE_SSO_CLIENT_ID
+        VITE_FACEBOOK_SSO_CLIENT_ID: $VITE_FACEBOOK_SSO_CLIENT_ID
+    image: $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
+    restart: unless-stopped
+    expose:
+      - '80'
+    networks:
+      - traefik

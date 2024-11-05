@@ -1,0 +1,79 @@
+stages:
+  - test
+  - build
+  - deploy
+
+lint:
+  image: node:20.17.0-alpine
+  stage: test
+  allow_failure: true 
+  tags:
+    - docker-compose
+    - prod
+  script:
+    - npm ci
+    - npm run lint
+
+build dev:
+  stage: build
+  image: atnartur/docker:latest
+  tags:
+    - docker-compose
+    - dev
+  variables:
+    VITE_API_URL: $DEV__VITE_API_URL
+    VITE_SITE_URL: $DEV__VITE_SITE_URL
+    VITE_PAYPAL_CLIENT_ID: $DEV__VITE_PAYPAL_CLIENT_ID
+    VITE_GOOGLE_SSO_CLIENT_ID: $DEV__VITE_GOOGLE_SSO_CLIENT_ID
+    VITE_FACEBOOK_SSO_CLIENT_ID: $DEV__VITE_FACEBOOK_SSO_CLIENT_ID
+  except:
+    - main
+  script:
+    - docker-compose -f docker-compose.dev.yml build
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker-compose -f docker-compose.dev.yml push
+
+build prod:
+  stage: build
+  image: atnartur/docker:latest
+  tags:
+    - docker-compose
+    - prod
+  variables:
+    VITE_API_URL: $PROD__VITE_API_URL
+    VITE_SITE_URL: $PROD__VITE_SITE_URL
+    VITE_PAYPAL_CLIENT_ID: $PROD__VITE_PAYPAL_CLIENT_ID
+    VITE_GOOGLE_SSO_CLIENT_ID: $PROD__VITE_GOOGLE_SSO_CLIENT_ID
+    VITE_FACEBOOK_SSO_CLIENT_ID: $PROD__VITE_FACEBOOK_SSO_CLIENT_ID
+  only:
+    - main
+  script:
+    - docker-compose -f docker-compose.prod.yml build
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker-compose -f docker-compose.prod.yml push
+
+deploy dev:
+  stage: deploy
+  image: atnartur/docker:latest
+  only:
+    - dev
+  tags:
+    - docker-compose
+    - dev
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker-compose -f docker-compose.dev.yml pull
+    - docker-compose -f docker-compose.dev.yml up -d --remove-orphans
+
+deploy prod:
+  stage: deploy
+  image: atnartur/docker:latest
+  only:
+    - main
+  tags:
+    - docker-compose
+    - prod
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker-compose -f docker-compose.prod.yml pull
+    - docker-compose -f docker-compose.prod.yml up -d --remove-orphans
